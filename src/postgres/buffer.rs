@@ -1,4 +1,5 @@
-use std::io::Read;
+use std::io;
+use std::ops::Range;
 
 pub struct Bytes(Vec<u8>);
 
@@ -7,15 +8,47 @@ impl Bytes {
         Self(Vec::new())
     }
 
-    pub fn as_slice(&self) -> &[u8] {
-        &self.0
+    pub fn get(&self, key: usize) -> &u8 {
+        &self.0[key]
     }
-}
 
-impl Read for Bytes {
-    fn read(&mut self, buf: &mut [u8]) -> Result<usize, std::io::Error> {
-        self.0.extend_from_slice(buf);
-        Ok(buf.len())
+    pub fn read_u32(&self, r: &[Range<usize>; 1]) -> u32 {
+        let r: Range<usize> = r.first().unwrap().clone();
+
+        let mut u32b: [u8; 4] = [0; 4];
+
+        let _ = self.range(r, |bytes| {
+            if bytes.len() != 4 {
+                return Err(io::Error::new(
+                    io::ErrorKind::InvalidInput,
+                    "ranged should to be 4",
+                ));
+            };
+
+            bytes
+                .iter()
+                .take(4)
+                .enumerate()
+                .for_each(|(key, value)| u32b[key] = *value);
+
+            Ok(())
+        });
+
+        u32::from_be_bytes(u32b)
+    }
+
+    fn range<F, E>(&self, r: Range<usize>, f: F) -> Result<(), E>
+    where
+        F: FnOnce(&[u8]) -> Result<(), E>,
+        E: From<io::Error>,
+    {
+        f(&self.0[r])?;
+
+        Ok(())
+    }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
     }
 }
 
@@ -52,5 +85,21 @@ impl MutBytes {
 
     pub fn as_slice(&self) -> &[u8] {
         &self.0
+    }
+}
+
+#[cfg(test)]
+mod test_buff {
+    use super::Bytes;
+
+    #[test]
+    fn read_u32_is_works() {
+        let mut buf: Bytes = Bytes::new();
+        buf.0.extend_from_slice(&1000u32.to_be_bytes());
+
+        let num = buf.read_u32(&[0..4]);
+        let expected_num = 1000u32;
+
+        assert_eq!(num, expected_num);
     }
 }
