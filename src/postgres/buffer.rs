@@ -1,15 +1,19 @@
 use std::io;
-use std::ops::Range;
+use std::ops::{Range, RangeFrom};
 
 pub struct Bytes(Vec<u8>);
 
 impl Bytes {
-    pub fn new() -> Self {
-        Self(Vec::new())
+    pub fn new(buf: &[u8]) -> Self {
+        Self(Vec::from(buf))
     }
 
-    pub fn get(&self, key: usize) -> &u8 {
-        &self.0[key]
+    pub fn get(&self, i: usize) -> &u8 {
+        &self.0[i]
+    }
+
+    pub fn slice(&self, r: &[RangeFrom<usize>; 1]) -> &[u8] {
+        &self.0[r.first().unwrap().clone()]
     }
 
     pub fn read_u32(&self, r: &[Range<usize>; 1]) -> u32 {
@@ -17,11 +21,11 @@ impl Bytes {
 
         let mut u32b: [u8; 4] = [0; 4];
 
-        let _ = self.range(r, |bytes| {
+        self.range(r, |bytes| {
             if bytes.len() != 4 {
                 return Err(io::Error::new(
                     io::ErrorKind::InvalidInput,
-                    "ranged should to be 4",
+                    "The range between the start and the end should to be 4",
                 ));
             };
 
@@ -32,7 +36,8 @@ impl Bytes {
                 .for_each(|(key, value)| u32b[key] = *value);
 
             Ok(())
-        });
+        })
+        .unwrap();
 
         u32::from_be_bytes(u32b)
     }
@@ -42,9 +47,7 @@ impl Bytes {
         F: FnOnce(&[u8]) -> Result<(), E>,
         E: From<io::Error>,
     {
-        f(&self.0[r])?;
-
-        Ok(())
+        f(&self.0[r])
     }
 
     pub fn len(&self) -> usize {
@@ -94,12 +97,19 @@ mod test_buff {
 
     #[test]
     fn read_u32_is_works() {
-        let mut buf: Bytes = Bytes::new();
-        buf.0.extend_from_slice(&1000u32.to_be_bytes());
+        let buf: Bytes = Bytes::new(&0u32.to_be_bytes());
 
         let num = buf.read_u32(&[0..4]);
-        let expected_num = 1000u32;
+        let expected_num = 0u32;
 
         assert_eq!(num, expected_num);
+    }
+
+    #[test]
+    #[should_panic(expected = "The range between the start and the end should to be 4")]
+    fn read_u32_range_cant_to_be_graeter_4() {
+        let buf: Bytes = Bytes::new(&0u64.to_be_bytes());
+
+        buf.read_u32(&[0..5]);
     }
 }
