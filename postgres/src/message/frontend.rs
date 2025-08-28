@@ -1,4 +1,4 @@
-use crate::postgres::buffer::MutBytes;
+use crate::buffer::MutBytes;
 use std::io;
 
 pub fn startup_message<'a, I>(params: I, buf: &mut MutBytes) -> io::Result<()>
