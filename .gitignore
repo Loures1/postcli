@@ -1,5 +1,6 @@
-/target
+*/target
 .env
 /db
 /docker-compose.yaml
+/docker-compose.yml
 *.py
